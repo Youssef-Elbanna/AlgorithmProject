@@ -12,6 +12,7 @@ class RoadNetwork:
         self.adj_list = defaultdict(list)  # node_id -> list of (neighbor, condition)
         self.critical_facilities = set()
         self.neighborhoods = set()
+        self.traffic_flow = {}
 
     def add_node(self, node_id, node_type='regular', x=None, y=None):
         self.nodes[node_id] = node_type
@@ -80,7 +81,20 @@ class RoadNetwork:
             if s in self.critical_facilities or d in self.critical_facilities
         ]
 
-    def dijkstra(self, start, end):
+    def dijkstra_traffic(self, start, end, time_period):
+        time_index = {
+            "morning": 0,
+            "afternoon": 1,
+            "evening": 2,
+            "night": 3
+        }[time_period]
+
+        # Create a quick lookup for traffic flow data
+        traffic_flow_lookup = {
+            tuple(map(int, key.split('⟶') if '⟶' in key else key.split('-'))): values
+            for key, values in self.traffic_flow.items()
+        }
+
         distances = {n: float('inf') for n in self.nodes}
         prev = {n: None for n in self.nodes}
         distances[start] = 0
@@ -89,16 +103,29 @@ class RoadNetwork:
         while pq:
             curr_d, u = heapq.heappop(pq)
             if u == end:
-                break
+             break
             if curr_d > distances[u]:
-                continue
+             continue
+
             for v, cond in self.adj_list[u]:
-                dist = next(
-                    (d for s, t, d, c in self.edges
-                     if (s == u and t == v) or (s == v and t == u)),
-                    float('inf')
+                edge = next(
+                    ((s, t, d, c) for s, t, d, c in self.edges if (s == u and t == v) or (s == v and t == u)),
+                    None
                 )
-                cost = dist / cond if cond != 0 else float('inf')
+                if edge is None:
+                    continue
+                s, t, dist, capacity = edge
+
+                # Get traffic volume for the time period
+                flow_key = (s, t) if (s, t) in traffic_flow_lookup else (t, s)
+                flow_data = traffic_flow_lookup.get(flow_key, [capacity]*4)
+                volume = flow_data[time_index]
+
+                # Calculate congestion factor
+                congestion = volume / capacity if capacity > 0 else 1.0
+                congestion_penalty = 1 + (congestion - 1) * 2  # tunable factor
+                cost = (dist / cond if cond > 0 else float('inf')) * congestion_penalty
+
                 nd = curr_d + cost
                 if nd < distances[v]:
                     distances[v] = nd
@@ -115,6 +142,7 @@ class RoadNetwork:
             node = prev[node]
         path.reverse()
         return path, distances[end]
+
 
     def euclidean_distance(self, n1, n2):
         x1, y1 = self.node_metadata[n1]['x'], self.node_metadata[n1]['y']
