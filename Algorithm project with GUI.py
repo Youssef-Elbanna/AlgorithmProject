@@ -1,16 +1,4 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, Toplevel, Text, Scrollbar, RIGHT, Y, BOTH, END
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import pandas as pd
-from RoadNetwork import RoadNetwork
-from RoadNetworkVisualizer import RoadNetworkVisualizer
-from collections import defaultdict
-from functools import lru_cache
-import numpy as np
 import networkx as nx
-
-
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, Toplevel, Text, Scrollbar, RIGHT, Y, BOTH, END
 import matplotlib.pyplot as plt
@@ -26,7 +14,7 @@ import numpy as np
 # Apply a modern theme and color enhancements
 def apply_theme(root):
     style = {
-    "bg": "#fdfdfd",
+        "bg": "#fdfdfd",
         "fg": "#2c3e50",
         "accent": "#001F54",
         "button_hover": "#2e86de",
@@ -36,6 +24,7 @@ def apply_theme(root):
     root.configure(bg=style["bg"])
     for widget in root.winfo_children():
         apply_widget_theme(widget, style)
+
 
 def apply_widget_theme(widget, style):
     if isinstance(widget, (tk.Frame, Toplevel)):
@@ -53,7 +42,7 @@ def apply_widget_theme(widget, style):
         widget.configure(bg="#ffffff", fg=style["fg"], font=style["font"], relief=tk.SOLID, bd=1)
     for child in widget.winfo_children():
         apply_widget_theme(child, style)
-        
+
 
 # ---------- Transit Logic ----------
 bus_routes = {
@@ -66,7 +55,7 @@ bus_routes = {
     "B7": ("13,4,14", 15, 21000),
     "B8": ("F7,15,7", 12, 17000),
     "B9": ("1,8,10,9,6", 28, 39000),
-    "B10":("F8,4,2,5", 20, 28000)
+    "B10": ("F8,4,2,5", 20, 28000)
 }
 
 metro_lines = {
@@ -75,24 +64,28 @@ metro_lines = {
     "M3": ("F1,5,2,3,9", 800000)
 }
 
+
 def optimize_bus_schedule(budget):
     bus_ids = list(bus_routes.keys())
     n = len(bus_ids)
+
     @lru_cache(None)
     def dp(i, remaining):
         if i == n:
             return 0, []
-        skip_val, skip_list = dp(i+1, remaining)
+        skip_val, skip_list = dp(i + 1, remaining)
         bus_id = bus_ids[i]
         _, _, passengers = bus_routes[bus_id]
         if remaining >= 1:
-            take_val, take_list = dp(i+1, remaining-1)
+            take_val, take_list = dp(i + 1, remaining - 1)
             take_val += passengers
             take_list = take_list + [bus_id]
             if take_val > skip_val:
                 return take_val, take_list
         return skip_val, skip_list
+
     return dp(0, budget)
+
 
 def optimize_road_maintenance(roads_df, max_km=50):
     roads = []
@@ -101,21 +94,22 @@ def optimize_road_maintenance(roads_df, max_km=50):
             benefit = row['Distance'] * (10 - row['Condition'])
             roads.append((row['From'], row['To'], row['Distance'], benefit))
     n = len(roads)
-    dp = np.zeros((n+1, int(max_km*10)+1))
-    for i in range(n-1, -1, -1):
-        for rem in range(int(max_km*10)+1):
-            skip = dp[i+1][rem]
+    dp = np.zeros((n + 1, int(max_km * 10) + 1))
+    for i in range(n - 1, -1, -1):
+        for rem in range(int(max_km * 10) + 1):
+            skip = dp[i + 1][rem]
             take = 0
-            if rem >= int(roads[i][2]*10):
-                take = roads[i][3] + dp[i+1][rem-int(roads[i][2]*10)]
+            if rem >= int(roads[i][2] * 10):
+                take = roads[i][3] + dp[i + 1][rem - int(roads[i][2] * 10)]
             dp[i][rem] = max(skip, take)
     selected = []
-    rem = int(max_km*10)
+    rem = int(max_km * 10)
     for i in range(n):
-        if dp[i][rem] != dp[i+1][rem]:
+        if dp[i][rem] != dp[i + 1][rem]:
             selected.append(roads[i])
-            rem -= int(roads[i][2]*10)
-    return dp[0][int(max_km*10)], selected
+            rem -= int(roads[i][2] * 10)
+    return dp[0][int(max_km * 10)], selected
+
 
 def rank_metro_lines():
     scores = {}
@@ -123,6 +117,7 @@ def rank_metro_lines():
         score = passengers / len(set(stops.split(",")))
         scores[line_id] = score
     return sorted(scores.items(), key=lambda x: -x[1])
+
 
 def find_transfer_points():
     transfer_points = defaultdict(list)
@@ -136,6 +131,7 @@ def find_transfer_points():
                 for m_id in metro_stops[stop]:
                     transfer_points[stop].append((b_id, m_id))
     return transfer_points
+
 
 def run_transit_optimization(roads_df):
     summary = []
@@ -159,6 +155,7 @@ def run_transit_optimization(roads_df):
             summary.append(f"Stop {stop} connects Bus {b_id} with Metro {m_id}")
     return "\n".join(summary)
 
+
 def show_transit_results(root, roads_df):
     result_text = run_transit_optimization(roads_df)
     window = Toplevel(root)
@@ -174,6 +171,7 @@ def show_transit_results(root, roads_df):
     window.transient(root)
     window.grab_set()
     root.wait_window(window)
+
 
 def show_transit_analysis_dialog(root, roads_df):
     def run_maintenance():
@@ -241,6 +239,7 @@ def show_transit_analysis_dialog(root, roads_df):
     win.grab_set()
     root.wait_window(win)
 
+
 # ---------- GUI Class ----------
 class InfrastructureEngineerApp:
     def __init__(self, root):
@@ -252,7 +251,6 @@ class InfrastructureEngineerApp:
         self.roads_df = None
         self.create_widgets()
         apply_theme(self.root)
-
 
     def create_widgets(self):
         header = tk.Label(self.root, text="🚧 Smart Infrastructure Management", font=("Segoe UI", 16, "bold"))
@@ -267,29 +265,45 @@ class InfrastructureEngineerApp:
         tk.Button(frame, text="Run Dijkstra algorithm", command=self.run_dijkstra).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Emergency Algorithm", command=self.run_a_star).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Clear Canvas", command=self.clear_canvas).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame, text="Transit Optimization", command=lambda: show_transit_results(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame, text="Transit Analysis", command=lambda: show_transit_analysis_dialog(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Transit Optimization",
+                  command=lambda: show_transit_results(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Transit Analysis",
+                  command=lambda: show_transit_analysis_dialog(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Greedy Route Finder", command=self.show_greedy_route_finder).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Traffic Flow Dijkstra", command=self.show_traffic_dijkstra).pack(side=tk.LEFT, padx=5)
 
         self.canvas_frame = tk.Frame(self.root, bg="#ffffff")
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-
     def load_data(self):
         try:
-            nodes_fp = filedialog.askopenfilename(title="Select nodes CSV", filetypes=[("CSV","*.csv")])
-            roads_fp = filedialog.askopenfilename(title="Select roads CSV", filetypes=[("CSV","*.csv")])
+            nodes_fp = filedialog.askopenfilename(title="Select nodes CSV", filetypes=[("CSV", "*.csv")])
+            roads_fp = filedialog.askopenfilename(title="Select roads CSV", filetypes=[("CSV", "*.csv")])
             nodes_df = pd.read_csv(nodes_fp)
             roads_df = pd.read_csv(roads_fp)
             self.roads_df = roads_df
             self.road_network = RoadNetwork()
             self.visualizer = RoadNetworkVisualizer(self.road_network)
+
             for _, r in nodes_df.iterrows():
-                self.road_network.add_node(str(r["ID"]), r.get("Type","regular"), float(r.get("X",0)), float(r.get("Y",0)))
+                population = int(r["Population"]) if "Population" in r and not pd.isna(r["Population"]) else 0
+                self.road_network.add_node(
+                    str(r["ID"]),
+                    r.get("Type", "regular"),
+                    float(r.get("X", 0)),
+                    float(r.get("Y", 0)),
+                    population
+                )
+
             for _, r in roads_df.iterrows():
-                self.road_network.add_edge(str(r["From"]), str(r["To"]), float(r["Distance"]), float(r["Condition"]))
-            messagebox.showinfo("Data Loaded", "Successfully loaded nodes & roads.")
+                self.road_network.add_edge(
+                    str(r["From"]),
+                    str(r["To"]),
+                    float(r["Distance"]),
+                    float(r["Condition"])
+                )
+
+            messagebox.showinfo("Data Loaded", "Successfully loaded nodes & roads with population data.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load data: {e}")
 
@@ -304,21 +318,20 @@ class InfrastructureEngineerApp:
         if not self.road_network.nodes:
             messagebox.showerror("Error", "No network loaded.")
             return
-        c = self.road_network.calculate_total_cost()
-        m = self.road_network.calculate_connectivity_metrics()
-        ok = self.road_network.validate_neighborhood_coverage()
+
+        mst_edges, cost = self.road_network.kruskal_mst()
+        total_nodes = len(set([u for u, v, _ in mst_edges] + [v for u, v, _ in mst_edges]))
+        total_edges = len(mst_edges)
+        avg_degree = (2 * total_edges) / total_nodes if total_nodes > 0 else 0
+
         report = (
-            f"Construction: {c['construction_cost']:.2f}\n"
-            f"Maintenance:  {c['maintenance_cost']:.2f}\n"
-            f"First-Year:   {c['first_year_total']:.2f}\n\n"
-            f"Nodes:   {m['total_nodes']}\n"
-            f"Edges:   {m['total_edges']}\n"
-            f"Avg deg: {m['avg_degree']:.2f}\n"
-            f"Critical:{m['critical_facilities']}\n"
-            f"Neighborhoods:{m['neighborhoods']}\n\n"
-            f"Coverage: {'Adequate' if ok else 'Insufficient'}"
+            f"--- MST Report ---\n"
+            f"Total Cost:   {cost:.2f}\n\n"
+            f"Nodes in MST: {total_nodes}\n"
+            f"Edges in MST: {total_edges}\n"
+            f"Avg Degree:   {avg_degree:.2f}"
         )
-        messagebox.showinfo("Network Report", report)
+        messagebox.showinfo("MST Report", report)
 
     def run_dijkstra(self):
         try:
@@ -350,13 +363,13 @@ class InfrastructureEngineerApp:
             return
 
         def get_time_period(minutes):
-            if 360 <= minutes < 720:     # 06:00 - 12:00
+            if 360 <= minutes < 720:  # 06:00 - 12:00
                 return "morning"
             elif 720 <= minutes < 1020:  # 12:00 - 17:00
                 return "afternoon"
-            elif 1020 <= minutes < 1320: # 17:00 - 22:00
+            elif 1020 <= minutes < 1320:  # 17:00 - 22:00
                 return "evening"
-            else:                        # 22:00 - 06:00
+            else:  # 22:00 - 06:00
                 return "night"
 
         time_period = get_time_period(start_time_minutes)
@@ -378,13 +391,13 @@ class InfrastructureEngineerApp:
                     path_edges.append((u, v, cost_uv))
                     break
 
-        self.display_graph(path_edges, f"Dijkstra {start}→{end} at {start_time_str} ({time_period.title()}, Cost: {total_cost:.2f})")
+        self.display_graph(path_edges,
+                           f"Dijkstra {start}→{end} at {start_time_str} ({time_period.title()}, Cost: {total_cost:.2f})")
         messagebox.showinfo("Dijkstra Result", f"Path: {' → '.join(path)}\nTotal Cost: {total_cost:.2f}")
-
 
     def run_a_star(self):
         start = simpledialog.askstring("A*", "Start node ID:")
-        end   = simpledialog.askstring("A*", "End node ID:")
+        end = simpledialog.askstring("A*", "End node ID:")
         if not start or not end or start not in self.road_network.nodes or end not in self.road_network.nodes:
             messagebox.showerror("Error", "Invalid start/end.")
             return
@@ -408,29 +421,28 @@ class InfrastructureEngineerApp:
 
     def display_graph(self, edge_subset, title="Graph"):
         self.clear_canvas()
-        fig = plt.Figure(figsize=(10,6))
+        fig = plt.Figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
-        self.visualizer.visualize_custom_edges(edge_subset, ax=ax, title=title)
+        self.visualizer.visualize_custom_edges(edge_subset, ax=ax, title=title, layout_k=2.5)
         canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    
     def show_greedy_route_finder(self):
         from_data = [
-        {"from": 1, "to": 3, "distance": 8.5, "capacity": 3000},
-        {"from": 1, "to": 8, "distance": 6.2, "capacity": 2500},
-        {"from": 2, "to": 3, "distance": 5.9, "capacity": 2800},
-        {"from": 2, "to": 5, "distance": 4.0, "capacity": 3200},
-        {"from": 3, "to": 5, "distance": 6.1, "capacity": 3500},
-        {"from": 3, "to": 6, "distance": 3.2, "capacity": 2000},
-        {"from": 3, "to": 9, "distance": 4.5, "capacity": 2600},
-        {"from": 3, "to": 10, "distance": 3.8, "capacity": 2400},
-        {"from": 8, "to": 10, "distance": 3.3, "capacity": 2200},
-        {"from": 9, "to": 10, "distance": 2.1, "capacity": 1900},
-        {"from": 10, "to": 11, "distance": 8.7, "capacity": 2400},
-        {"from": 11, "to": 2, "distance": 3.6, "capacity": 2200}
-    ]
+            {"from": 1, "to": 3, "distance": 8.5, "capacity": 3000},
+            {"from": 1, "to": 8, "distance": 6.2, "capacity": 2500},
+            {"from": 2, "to": 3, "distance": 5.9, "capacity": 2800},
+            {"from": 2, "to": 5, "distance": 4.0, "capacity": 3200},
+            {"from": 3, "to": 5, "distance": 6.1, "capacity": 3500},
+            {"from": 3, "to": 6, "distance": 3.2, "capacity": 2000},
+            {"from": 3, "to": 9, "distance": 4.5, "capacity": 2600},
+            {"from": 3, "to": 10, "distance": 3.8, "capacity": 2400},
+            {"from": 8, "to": 10, "distance": 3.3, "capacity": 2200},
+            {"from": 9, "to": 10, "distance": 2.1, "capacity": 1900},
+            {"from": 10, "to": 11, "distance": 8.7, "capacity": 2400},
+            {"from": 11, "to": 2, "distance": 3.6, "capacity": 2200}
+        ]
         G = defaultdict(list)
         for r in from_data:
             G[r["from"]].append(r)
@@ -483,11 +495,6 @@ class InfrastructureEngineerApp:
                 result.config(text="Error")
 
         tk.Button(win, text="Run", command=on_submit).pack(pady=5)
-
-
-
-
-        
 
     def show_traffic_dijkstra(self):
 
@@ -601,7 +608,6 @@ class InfrastructureEngineerApp:
         tk.Button(win, text="Find Route", command=on_submit).pack(pady=15)
 
 
-                
 if __name__ == "__main__":
     root = tk.Tk()
     app = InfrastructureEngineerApp(root)

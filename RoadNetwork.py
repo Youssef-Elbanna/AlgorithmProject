@@ -12,11 +12,15 @@ class RoadNetwork:
         self.adj_list = defaultdict(list)  # node_id -> list of (neighbor, condition)
         self.critical_facilities = set()
         self.neighborhoods = set()
-        self.traffic_flow = {}
 
-    def add_node(self, node_id, node_type='regular', x=None, y=None):
+    def add_node(self, node_id, node_type='regular', x=None, y=None, population=0):
         self.nodes[node_id] = node_type
-        self.node_metadata[node_id] = {'type': node_type, 'x': x, 'y': y}
+        self.node_metadata[node_id] = {
+            'type': node_type,
+            'x': x,
+            'y': y,
+            'population': population  # <-- add this line
+        }
         t = node_type.lower()
         if t in ['critical', 'airport', 'education', 'medical', 'government', 'transit hub']:
             self.critical_facilities.add(node_id)
@@ -28,18 +32,34 @@ class RoadNetwork:
         self.adj_list[src].append((dest, condition))
         self.adj_list[dest].append((src, condition))
 
-    def _adjust_weight_for_critical(self, src, dest, weight):
+    def _adjust_weight(self, src, dest, base_weight):
+        weight = base_weight
+
+        # Critical facility bias
         if src in self.critical_facilities or dest in self.critical_facilities:
-            return weight * 0.8
+            weight *= 0.8
+
+        # Population bias
+        pop_src = self.node_metadata[src].get('population', 0)
+        pop_dest = self.node_metadata[dest].get('population', 0)
+        avg_pop = (pop_src + pop_dest) / 2
+
+        pop_factor = 1 - min(avg_pop / 10000, 0.2)  # Max 20% reduction
+        weight *= pop_factor
+
+        # DEBUG LOG
+        print(f"Edge {src} ↔ {dest}: base={base_weight:.2f}, pop_avg={avg_pop:.0f}, weight={weight:.2f}")
+
         return weight
 
     def kruskal_mst(self):
         uf = UnionFind(self.nodes)
         # Use distance as the cost for MST, with critical bias
         weighted_edges = [
-            (s, d, self._adjust_weight_for_critical(s, d, dist))
+            (s, d, self._adjust_weight(s, d, dist))
             for s, d, dist, _ in self.edges
         ]
+
         weighted_edges.sort(key=lambda x: x[2])
 
         mst = []
@@ -81,20 +101,7 @@ class RoadNetwork:
             if s in self.critical_facilities or d in self.critical_facilities
         ]
 
-    def dijkstra_traffic(self, start, end, time_period):
-        time_index = {
-            "morning": 0,
-            "afternoon": 1,
-            "evening": 2,
-            "night": 3
-        }[time_period]
-
-        # Create a quick lookup for traffic flow data
-        traffic_flow_lookup = {
-            tuple(map(int, key.split('⟶') if '⟶' in key else key.split('-'))): values
-            for key, values in self.traffic_flow.items()
-        }
-
+    def dijkstra(self, start, end):
         distances = {n: float('inf') for n in self.nodes}
         prev = {n: None for n in self.nodes}
         distances[start] = 0
@@ -103,29 +110,16 @@ class RoadNetwork:
         while pq:
             curr_d, u = heapq.heappop(pq)
             if u == end:
-             break
+                break
             if curr_d > distances[u]:
-             continue
-
+                continue
             for v, cond in self.adj_list[u]:
-                edge = next(
-                    ((s, t, d, c) for s, t, d, c in self.edges if (s == u and t == v) or (s == v and t == u)),
-                    None
+                dist = next(
+                    (d for s, t, d, c in self.edges
+                     if (s == u and t == v) or (s == v and t == u)),
+                    float('inf')
                 )
-                if edge is None:
-                    continue
-                s, t, dist, capacity = edge
-
-                # Get traffic volume for the time period
-                flow_key = (s, t) if (s, t) in traffic_flow_lookup else (t, s)
-                flow_data = traffic_flow_lookup.get(flow_key, [capacity]*4)
-                volume = flow_data[time_index]
-
-                # Calculate congestion factor
-                congestion = volume / capacity if capacity > 0 else 1.0
-                congestion_penalty = 1 + (congestion - 1) * 2  # tunable factor
-                cost = (dist / cond if cond > 0 else float('inf')) * congestion_penalty
-
+                cost = dist / cond if cond != 0 else float('inf')
                 nd = curr_d + cost
                 if nd < distances[v]:
                     distances[v] = nd
@@ -142,7 +136,6 @@ class RoadNetwork:
             node = prev[node]
         path.reverse()
         return path, distances[end]
-
 
     def euclidean_distance(self, n1, n2):
         x1, y1 = self.node_metadata[n1]['x'], self.node_metadata[n1]['y']
