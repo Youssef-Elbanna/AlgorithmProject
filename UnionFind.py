@@ -1,3 +1,5 @@
+# UnionFind.py
+
 class UnionFind:
     def __init__(self, nodes):
         self.parent = {node: node for node in nodes}
