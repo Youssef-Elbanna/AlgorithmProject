@@ -22,15 +22,7 @@ A modular and scalable Python-based application for analyzing and optimizing urb
 
 ---
 
-## 🖼️ Demo Preview (optional)
-
-> Insert screenshots or gifs here, for example:
->
-> * Main GUI interface
-> * Graph visualizations
-> * Bus route optimization output
-> * MST overlays on map
-
+## 🖼️ Demo Preview (we will upload the .exe file) 
 ---
 
 ## 📦 Installation
