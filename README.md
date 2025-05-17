@@ -72,12 +72,5 @@ python -m unittest TestRoadNetworkAnalysis.py
 * Prioritize **road repairs** based on connectivity importance.
 * Evaluate and rank **metro line usage** for public transport planning.
 
-## Screenshots
-
-*Add screenshots here of the GUI with route visualization, analysis output, etc.*
-
-## License
-
-This project is open-source and available under the MIT License.
 
 
