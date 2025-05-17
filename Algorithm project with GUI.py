@@ -1,3 +1,4 @@
+# Import necessary modules
 import networkx as nx
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, Toplevel, Text, Scrollbar, RIGHT, Y, BOTH, END
@@ -10,8 +11,9 @@ from collections import defaultdict
 from functools import lru_cache
 import numpy as np
 
-# Apply a modern theme and color enhancements
-# Apply a modern theme and color enhancements
+# ---------- UI Theme Functions ----------
+
+# Applies a modern theme to the root window and its children
 def apply_theme(root):
     style = {
         "bg": "#fdfdfd",
@@ -25,7 +27,7 @@ def apply_theme(root):
     for widget in root.winfo_children():
         apply_widget_theme(widget, style)
 
-
+# Recursively apply the theme to each widget
 def apply_widget_theme(widget, style):
     if isinstance(widget, (tk.Frame, Toplevel)):
         widget.configure(bg=style["bg"])
@@ -44,7 +46,9 @@ def apply_widget_theme(widget, style):
         apply_widget_theme(child, style)
 
 
-# ---------- Transit Logic ----------
+# ---------- Transit Data ----------
+
+# Format: route ID: (stop sequence, travel time, daily passengers)
 bus_routes = {
     "B1": ("1,3,6,9", 25, 35000),
     "B2": ("7,15,8,10,3", 30, 42000),
@@ -58,6 +62,7 @@ bus_routes = {
     "B10": ("F8,4,2,5", 20, 28000)
 }
 
+# Format: line ID: (stop sequence, daily passengers)
 metro_lines = {
     "M1": ("12,1,3,F2,11", 1500000),
     "M2": ("11,F2,3,10,8", 1200000),
@@ -65,6 +70,9 @@ metro_lines = {
 }
 
 
+# ---------- Optimization Logic ----------
+
+# Dynamic programming to select bus routes under a fixed budget to maximize passengers
 def optimize_bus_schedule(budget):
     bus_ids = list(bus_routes.keys())
     n = len(bus_ids)
@@ -87,11 +95,12 @@ def optimize_bus_schedule(budget):
     return dp(0, budget)
 
 
+# Knapsack-style DP to prioritize road maintenance for most benefit within a km limit
 def optimize_road_maintenance(roads_df, max_km=50):
     roads = []
     for _, row in roads_df.iterrows():
-        if row['Condition'] <= 6:
-            benefit = row['Distance'] * (10 - row['Condition'])
+        if row['Condition'] <= 6:  # Only consider roads in poor condition
+            benefit = row['Distance'] * (10 - row['Condition'])  # Heuristic for benefit
             roads.append((row['From'], row['To'], row['Distance'], benefit))
     n = len(roads)
     dp = np.zeros((n + 1, int(max_km * 10) + 1))
@@ -102,6 +111,8 @@ def optimize_road_maintenance(roads_df, max_km=50):
             if rem >= int(roads[i][2] * 10):
                 take = roads[i][3] + dp[i + 1][rem - int(roads[i][2] * 10)]
             dp[i][rem] = max(skip, take)
+
+    # Backtrack to find selected roads
     selected = []
     rem = int(max_km * 10)
     for i in range(n):
@@ -111,6 +122,7 @@ def optimize_road_maintenance(roads_df, max_km=50):
     return dp[0][int(max_km * 10)], selected
 
 
+# Calculate metro line efficiency (passengers per unique stop)
 def rank_metro_lines():
     scores = {}
     for line_id, (stops, passengers) in metro_lines.items():
@@ -119,6 +131,7 @@ def rank_metro_lines():
     return sorted(scores.items(), key=lambda x: -x[1])
 
 
+# Find common stops between bus routes and metro lines
 def find_transfer_points():
     transfer_points = defaultdict(list)
     metro_stops = defaultdict(set)
@@ -133,21 +146,25 @@ def find_transfer_points():
     return transfer_points
 
 
+# Run all optimization analyses and return formatted result
 def run_transit_optimization(roads_df):
     summary = []
     max_passengers, selected_buses = optimize_bus_schedule(30)
     summary.append("--- Optimizing Bus Schedule (DP) ---")
     summary.append(f"Selected Buses: {selected_buses}")
     summary.append(f"Max Daily Passengers: {max_passengers}\n")
+
     total_benefit, selected_roads = optimize_road_maintenance(roads_df)
     summary.append("--- Optimizing Road Maintenance (DP) ---")
     summary.append(f"Total Benefit: {total_benefit}")
     summary.append("Selected Roads:")
     for r in selected_roads:
         summary.append(f"{r[0]} → {r[1]} ({r[2]} km)")
+
     summary.append("\n--- Ranking Metro Lines by Coverage Efficiency ---")
     for line, score in rank_metro_lines():
         summary.append(f"{line}: Score = {score:.2f}")
+
     summary.append("\n--- Bus ↔ Metro Transfer Points ---")
     transfer_points = find_transfer_points()
     for stop, connections in transfer_points.items():
@@ -156,6 +173,9 @@ def run_transit_optimization(roads_df):
     return "\n".join(summary)
 
 
+# ---------- Result Display Functions ----------
+
+# Show all transit optimization results in a scrollable pop-up window
 def show_transit_results(root, roads_df):
     result_text = run_transit_optimization(roads_df)
     window = Toplevel(root)
@@ -173,6 +193,7 @@ def show_transit_results(root, roads_df):
     root.wait_window(window)
 
 
+# Show an interactive dialog to explore transit analysis options
 def show_transit_analysis_dialog(root, roads_df):
     def run_maintenance():
         try:
@@ -211,6 +232,7 @@ def show_transit_analysis_dialog(root, roads_df):
             output_text.delete(1.0, END)
             output_text.insert(END, f"No connections found for stop {stop}.")
 
+    # Create dialog UI
     win = Toplevel(root)
     win.title("Transit Analysis Options")
     win.geometry("600x500")
@@ -240,51 +262,62 @@ def show_transit_analysis_dialog(root, roads_df):
     root.wait_window(win)
 
 
+
 # ---------- GUI Class ----------
 class InfrastructureEngineerApp:
     def __init__(self, root):
+        # Initialize the main application window
         self.root = root
         self.root.title("Infrastructure Engineer GUI")
         self.root.geometry("1000x700")
+        
+        # Initialize road network and its visualizer
         self.road_network = RoadNetwork()
         self.visualizer = RoadNetworkVisualizer(self.road_network)
-        self.roads_df = None
-        self.create_widgets()
-        apply_theme(self.root)
+        
+        self.roads_df = None  # Placeholder for loaded road data as a DataFrame
+        self.create_widgets()  # Create the GUI layout and buttons
+        apply_theme(self.root)  # Apply consistent theme to the GUI
 
     def create_widgets(self):
+        # Header label
         header = tk.Label(self.root, text="🚧 Smart Infrastructure Management", font=("Segoe UI", 16, "bold"))
         header.pack(pady=15)
 
+        # Frame for holding control buttons
         frame = tk.Frame(self.root, bg="#f0f4f8", relief=tk.RIDGE, bd=2, padx=10, pady=10)
         frame.pack(pady=10)
 
+        # Button controls for various functionalities
         tk.Button(frame, text="Load Data", command=self.load_data).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Generate MST", command=self.generate_mst).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Show Report", command=self.show_report).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Run Dijkstra algorithm", command=self.run_dijkstra).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame, text="Emergency Algorithm", command=self.run_a_star).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Emergency Route finder", command=self.run_a_star).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Clear Canvas", command=self.clear_canvas).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame, text="Transit Optimization",
-                  command=lambda: show_transit_results(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame, text="Transit Analysis",
-                  command=lambda: show_transit_analysis_dialog(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Transit Optimization", command=lambda: show_transit_results(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Transit Analysis",command=lambda: show_transit_analysis_dialog(self.root, self.roads_df)).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Greedy Route Finder", command=self.show_greedy_route_finder).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Traffic Flow Dijkstra", command=self.show_traffic_dijkstra).pack(side=tk.LEFT, padx=5)
 
+        # Canvas area for visual output
         self.canvas_frame = tk.Frame(self.root, bg="#ffffff")
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     def load_data(self):
+        # Load node and edge data from CSV files
         try:
             nodes_fp = filedialog.askopenfilename(title="Select nodes CSV", filetypes=[("CSV", "*.csv")])
             roads_fp = filedialog.askopenfilename(title="Select roads CSV", filetypes=[("CSV", "*.csv")])
             nodes_df = pd.read_csv(nodes_fp)
             roads_df = pd.read_csv(roads_fp)
             self.roads_df = roads_df
+
+            # Re-initialize network and visualizer
             self.road_network = RoadNetwork()
             self.visualizer = RoadNetworkVisualizer(self.road_network)
 
+            # Add nodes from CSV
             for _, r in nodes_df.iterrows():
                 population = int(r["Population"]) if "Population" in r and not pd.isna(r["Population"]) else 0
                 self.road_network.add_node(
@@ -295,6 +328,7 @@ class InfrastructureEngineerApp:
                     population
                 )
 
+            # Add edges from CSV
             for _, r in roads_df.iterrows():
                 self.road_network.add_edge(
                     str(r["From"]),
@@ -308,6 +342,7 @@ class InfrastructureEngineerApp:
             messagebox.showerror("Error", f"Failed to load data: {e}")
 
     def generate_mst(self):
+        # Generate and visualize a Minimum Spanning Tree using Kruskal's algorithm
         if not self.road_network.nodes:
             messagebox.showerror("Error", "No network loaded.")
             return
@@ -315,6 +350,7 @@ class InfrastructureEngineerApp:
         self.display_graph(edges, f"MST (Cost: {cost:.2f})")
 
     def show_report(self):
+        # Display summary statistics about the MST
         if not self.road_network.nodes:
             messagebox.showerror("Error", "No network loaded.")
             return
@@ -334,6 +370,7 @@ class InfrastructureEngineerApp:
         messagebox.showinfo("MST Report", report)
 
     def run_dijkstra(self):
+        # Prompt user for start, end, and time, and then run time-based Dijkstra algorithm
         try:
             start = simpledialog.askstring("Dijkstra", "Start node ID:")
             end = simpledialog.askstring("Dijkstra", "End node ID:")
@@ -383,6 +420,7 @@ class InfrastructureEngineerApp:
             messagebox.showerror("Error", "No path found.")
             return
 
+        # Build list of edges for visualizing path
         path_edges = []
         for u, v in zip(path, path[1:]):
             for s, t, dist, cond in self.road_network.edges:
