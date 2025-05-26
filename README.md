@@ -1,11 +1,10 @@
-
 # 🚦 Smart Infrastructure Management GUI
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Status](https://img.shields.io/badge/Project-Active-brightgreen.svg)
 
-A modular and scalable Python-based application for analyzing and optimizing urban road and transit networks. This GUI-enabled tool empowers urban planners, transport engineers, and researchers to simulate, visualize, and enhance infrastructure using advanced algorithms like Minimum Spanning Tree (MST), Dijkstra’s, A\*, and dynamic programming.
+A modular and scalable Python-based application for analyzing and optimizing urban road and transit networks. This GUI-enabled tool empowers urban planners, transport engineers, and researchers to simulate, visualize, and enhance infrastructure using advanced algorithms like Minimum Spanning Tree (MST), Dijkstra's, A*, and dynamic programming.
 
 ---
 
@@ -14,11 +13,11 @@ A modular and scalable Python-based application for analyzing and optimizing urb
 | Category         | Features                                                            |
 | ---------------- | ------------------------------------------------------------------- |
 | 💻 GUI           | Tkinter-based interactive simulation environment                    |
-| 📊 Algorithms    | MST (Kruskal), Dijkstra, A\* (with heuristics), Dynamic Programming |
+| 📊 Algorithms    | MST (Kruskal), Dijkstra, A* (with heuristics), Dynamic Programming |
 | 🧠 Optimization  | Bus scheduling, road maintenance, metro line analysis               |
 | 🧭 Routing       | Traffic-aware pathfinding (rush hour simulation)                    |
 | 🎨 Visualization | Real-time network rendering with Matplotlib & NetworkX              |
-| 🧪 Testing       | Unit-tested algorithm modules using Python’s unittest framework     |
+| 🧪 Testing       | Unit-tested algorithm modules using Python's unittest framework     |
 
 ---
 
@@ -46,6 +45,7 @@ Contents of requirements.txt:
 matplotlib
 networkx
 pandas
+numpy
 ```
 
 ---
@@ -55,29 +55,21 @@ pandas
 You can launch the GUI using:
 
 ```bash
-python InfrastructureEngineerApp.py
-```
-
-Alternative entry point (transit-focused GUI):
-
-```bash
-python Algorithms\ project\ with\ GUI.py
+python "Algorithm project with GUI.py"
 ```
 
 ---
 
 ## 🧠 Algorithms Implemented
 
-* 🟩 Kruskal’s MST for minimum-cost infrastructure layout
-* 🟦 Dijkstra’s Algorithm for shortest route planning
-* 🟨 A\* Search for emergency and heuristic-driven routing
+* 🟩 Kruskal's MST for minimum-cost infrastructure layout
+* 🟦 Dijkstra's Algorithm for shortest route planning
+* 🟨 A* Search for emergency and heuristic-driven routing
 * 🟥 Time-Dependent Shortest Path for congestion-aware navigation
 * 🟧 Dynamic Programming for:
-
   * 🚌 Optimal bus coverage within budget
   * 🛠️ Priority-based road maintenance
 * 🟪 Greedy Algorithms for:
-
   * 🚦 Traffic signal optimization
   * 🚑 Emergency vehicle preemption
 
@@ -87,31 +79,37 @@ python Algorithms\ project\ with\ GUI.py
 
 ```
 .
-├── InfrastructureEngineerApp.py        # Main simulation GUI
-├── Algorithms project with GUI.py      # Transit-optimized GUI
-├── RoadNetwork.py                      # Graph structure + all algorithms
-├── RoadNetworkVisualizer.py            # Visualization module
-├── UnionFind.py                        # Kruskal's helper class
-├── TestRoadNetworkAnalysis.py          # Unit test coverage
-├── requirements.txt                    # Required packages
+├── Algorithm project with GUI.py      # Main application GUI
+├── RoadNetwork.py                     # Graph structure + algorithms
+├── RoadNetworkVisualizer.py          # Visualization module
+├── requirements.txt                   # Required packages
+├── nodes.csv                         # Node data
+├── roads.csv                         # Road network data
+└── traffic.csv                       # Traffic pattern data
 ```
 
 ---
 
-## ✅ Testing
+## 📊 Data Structure
 
-To validate algorithm correctness and edge cases:
+### Nodes
+- ID: Unique identifier
+- Type: Node type (regular, facility, etc.)
+- X, Y: Coordinates
+- Population: Population density
 
-```bash
-python -m unittest TestRoadNetworkAnalysis.py
-```
+### Roads
+- From: Source node ID
+- To: Destination node ID
+- Distance: Road length
+- Condition: Road condition rating
 
-Tests include:
-
-* MST validation
-* Shortest path consistency (Dijkstra vs A\*)
-* Redundant edge handling
-* Edge case scenarios (disconnected graphs, missing nodes)
+### Traffic
+- Time-based traffic volumes for different periods:
+  - Morning (6:00-12:00)
+  - Afternoon (12:00-17:00)
+  - Evening (17:00-22:00)
+  - Night (22:00-6:00)
 
 ---
 
@@ -135,7 +133,12 @@ Tests include:
 
 ---
 
+## 🤝 Contributing
+
+Feel free to submit issues and enhancement requests! We welcome contributions to make this project even better.
+
+---
+
 ## 📄 License
 
-This project is licensed under the MIT License. See LICENSE for details.
-
+This project is licensed under the MIT License. See LICENSE for details. 
