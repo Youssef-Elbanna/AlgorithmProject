@@ -10,6 +10,7 @@ from RoadNetworkVisualizer import RoadNetworkVisualizer
 from collections import defaultdict
 from functools import lru_cache
 import numpy as np
+import os
 
 # ---------- UI Theme Functions ----------
 
@@ -278,6 +279,9 @@ class InfrastructureEngineerApp:
         self.roads_df = None  # Placeholder for loaded road data as a DataFrame
         self.create_widgets()  # Create the GUI layout and buttons
         apply_theme(self.root)  # Apply consistent theme to the GUI
+        
+        # Automatically load data when program starts
+        self.load_data()
 
     def create_widgets(self):
         # Header label
@@ -305,10 +309,21 @@ class InfrastructureEngineerApp:
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     def load_data(self):
-        # Load node and edge data from CSV files
+        # Load node and edge data from CSV files automatically
         try:
-            nodes_fp = filedialog.askopenfilename(title="Select nodes CSV", filetypes=[("CSV", "*.csv")])
-            roads_fp = filedialog.askopenfilename(title="Select roads CSV", filetypes=[("CSV", "*.csv")])
+            # Get the directory of the current script
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Define the expected file paths
+            nodes_fp = os.path.join(current_dir, "nodes.csv")
+            roads_fp = os.path.join(current_dir, "roads.csv")
+            traffic_fp = os.path.join(current_dir, "traffic.csv")
+            
+            # Check if files exist
+            if not all(os.path.exists(f) for f in [nodes_fp, roads_fp, traffic_fp]):
+                messagebox.showerror("Error", "Required data files not found. Please ensure nodes.csv, roads.csv, and traffic.csv are in the same directory as the program.")
+                return
+            
             nodes_df = pd.read_csv(nodes_fp)
             roads_df = pd.read_csv(roads_fp)
             self.roads_df = roads_df
@@ -337,7 +352,10 @@ class InfrastructureEngineerApp:
                     float(r["Condition"])
                 )
 
-            messagebox.showinfo("Data Loaded", "Successfully loaded nodes & roads with population data.")
+            # Load traffic data
+            self.road_network.load_traffic_data(traffic_fp)
+
+            messagebox.showinfo("Data Loaded", "Successfully loaded nodes, roads, and traffic data.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load data: {e}")
 
@@ -434,15 +452,57 @@ class InfrastructureEngineerApp:
         messagebox.showinfo("Dijkstra Result", f"Path: {' → '.join(path)}\nTotal Cost: {total_cost:.2f}")
 
     def run_a_star(self):
-        start = simpledialog.askstring("A*", "Start node ID:")
-        end = simpledialog.askstring("A*", "End node ID:")
-        if not start or not end or start not in self.road_network.nodes or end not in self.road_network.nodes:
-            messagebox.showerror("Error", "Invalid start/end.")
+        # Prompt user for start, end, and time, and then run time-based A* algorithm
+        try:
+            start = simpledialog.askstring("A*", "Start node ID:")
+            end = simpledialog.askstring("A*", "End node ID:")
+
+            if not start or not end:
+                messagebox.showerror("Error", "Start and End must be provided.")
+                return
+
+            start = start.strip()
+            end = end.strip()
+        except Exception:
+            messagebox.showerror("Error", "Invalid input for start/end node.")
             return
-        path, total_cost = self.road_network.a_star(start, end)
+
+        start_time_str = simpledialog.askstring("A*", "Start time (HH:MM, 24h format):")
+        if not start_time_str:
+            messagebox.showerror("Error", "Start time required.")
+            return
+
+        try:
+            hour, minute = map(int, start_time_str.strip().split(":"))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError
+            start_time_minutes = hour * 60 + minute
+        except ValueError:
+            messagebox.showerror("Error", "Invalid time format. Use HH:MM.")
+            return
+
+        def get_time_period(minutes):
+            if 360 <= minutes < 720:  # 06:00 - 12:00
+                return "morning"
+            elif 720 <= minutes < 1020:  # 12:00 - 17:00
+                return "afternoon"
+            elif 1020 <= minutes < 1320:  # 17:00 - 22:00
+                return "evening"
+            else:  # 22:00 - 06:00
+                return "night"
+
+        time_period = get_time_period(start_time_minutes)
+
+        if start not in self.road_network.nodes or end not in self.road_network.nodes:
+            messagebox.showerror("Error", "Invalid start/end node.")
+            return
+
+        path, total_cost = self.road_network.a_star(start, end, time_period)
         if not path:
             messagebox.showerror("Error", "No path found.")
             return
+
+        # Build list of edges for visualizing path
         path_edges = []
         for u, v in zip(path, path[1:]):
             for s, t, dist, cond in self.road_network.edges:
@@ -450,7 +510,9 @@ class InfrastructureEngineerApp:
                     cost_uv = dist / cond if cond else float('inf')
                     path_edges.append((u, v, cost_uv))
                     break
-        self.display_graph(path_edges, f"A* {start}→{end} (Cost: {total_cost:.2f})")
+
+        self.display_graph(path_edges,
+                           f"A* {start}→{end} at {start_time_str} ({time_period.title()}, Cost: {total_cost:.2f})")
         messagebox.showinfo("A* Result", f"Path: {' → '.join(path)}\nTotal Cost: {total_cost:.2f}")
 
     def clear_canvas(self):
